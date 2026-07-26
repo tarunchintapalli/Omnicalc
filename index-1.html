@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyCalculator – Free Online Scientific Calculator & Everyday Calculation Tools</title>
+<meta name="description" content="MyCalculator is a free online scientific calculator with memory, history, and dark mode. No downloads, no registration — fast, accurate calculations in your browser.">
+<link rel="canonical" href="https://www.mycalculator-example.com/">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="MyCalculator – Free Online Scientific Calculator">
+<meta property="og:description" content="Free, fast, mobile-friendly scientific calculator with history and memory. No registration required.">
+<meta property="og:url" content="https://www.mycalculator-example.com/">
+<meta property="og:image" content="https://www.mycalculator-example.com/favicon.ico">
+
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="stylesheet" href="style.css">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "MyCalculator",
+  "url": "https://www.mycalculator-example.com/",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Any",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "description": "Free online scientific calculator with memory, history, and dark mode."
+}
+</script>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a class="logo" href="index.html">My<span>Calculator</span></a>
+    <nav class="nav-links">
+      <a href="index.html" class="current">Home</a>
+      <a href="about.html">About</a>
+      <a href="contact.html">Contact</a>
+      <a href="privacy-policy.html">Privacy</a>
+      <a href="terms.html">Terms</a>
+      <a href="disclaimer.html">Disclaimer</a>
+      <button id="themeToggle">🌙 Dark</button>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div>
+    <div class="eyebrow">Free · No sign-up · Works in your browser</div>
+    <h1>Free online calculator, built for <em>students, engineers, and everyday life</em>.</h1>
+    <p>Welcome to MyCalculator, your free online calculator website designed for students, engineers, professionals, and everyone who needs fast and accurate calculations. Our tools cover mathematics, finance, health, education, engineering, and daily life — all directly in your browser, with no downloads or registration.</p>
+    <div class="cta-row"><a href="#calculator">Start calculating now ↓</a></div>
+    <ul class="why-list">
+      <li>Free forever</li>
+      <li>Mobile-friendly</li>
+      <li>Fast and accurate</li>
+      <li>Scientific calculator</li>
+      <li>No registration required</li>
+      <li>Secure and privacy-friendly</li>
+    </ul>
+  </div>
+  <div></div>
+</section>
+
+<section id="calculator">
+  <div class="device">
+    <div class="brand-row"><span>MyCalculator</span><b>Scientific</b></div>
+
+    <div class="toggle-row">
+      <div class="grp">
+        <button id="degRadToggle" class="active" title="Toggle degrees/radians">DEG</button>
+        <button id="sciToggle" title="Toggle scientific notation">SCI</button>
+      </div>
+      <div class="grp">
+        <button id="copyResult" title="Copy result to clipboard">Copy</button>
+        <button id="tapeClear" title="Clear saved history">CLR TAPE</button>
+      </div>
+    </div>
+
+    <div class="tape-window">
+      <div class="tape" id="tape">
+        <div class="tape-empty">— no calculations yet —</div>
+      </div>
+    </div>
+
+    <div class="lcd">
+      <div class="mode-row">
+        <span class="mode-tag" id="tagInv">INV</span>
+        <span class="mode-tag active" id="tagDeg">DEG</span>
+      </div>
+      <span class="mem-flag" id="memFlag">M</span>
+      <div class="expr" id="expr">&nbsp;</div>
+      <div class="main" id="display">0</div>
+    </div>
+
+    <div class="rows">
+      <div class="row five">
+        <button class="mem" data-act="mc">MC</button>
+        <button class="mem" data-act="mr">MR</button>
+        <button class="mem" data-act="mplus">M+</button>
+        <button class="mem" data-act="mminus">M-</button>
+        <button class="fn" data-act="fact">n!</button>
+      </div>
+      <div class="row five">
+        <button class="fn" data-act="inv">INV</button>
+        <button class="fn" data-act="sin">sin</button>
+        <button class="fn" data-act="cos">cos</button>
+        <button class="fn" data-act="tan">tan</button>
+        <button class="fn" data-act="pi">π</button>
+      </div>
+      <div class="row five">
+        <button class="fn" data-act="ln">ln</button>
+        <button class="fn" data-act="log">log</button>
+        <button class="fn" data-act="pow">xʸ</button>
+        <button class="fn" data-act="sqrt">√x</button>
+        <button class="op" data-act="div">÷</button>
+      </div>
+      <div class="row five">
+        <button class="clear" data-act="ac">AC</button>
+        <button class="clear" data-act="back">⌫</button>
+        <button data-act="paren-l">(</button>
+        <button data-act="paren-r">)</button>
+        <button class="op" data-act="mul">×</button>
+      </div>
+      <div class="row">
+        <button data-num="7">7</button>
+        <button data-num="8">8</button>
+        <button data-num="9">9</button>
+        <button class="op" data-act="sub">−</button>
+      </div>
+      <div class="row">
+        <button data-num="4">4</button>
+        <button data-num="5">5</button>
+        <button data-num="6">6</button>
+        <button class="op" data-act="add">+</button>
+      </div>
+      <div class="row">
+        <button data-num="1">1</button>
+        <button data-num="2">2</button>
+        <button data-num="3">3</button>
+        <button data-num="0">0</button>
+      </div>
+      <div class="row">
+        <button data-num="." class="wide">.</button>
+        <button class="equals wide" data-act="equals">=</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="features" id="features">
+  <h2>Why choose MyCalculator?</h2>
+  <div class="feature-grid">
+    <div>
+      <h3>Scientific functions</h3>
+      <p>Trig (with degrees/radians and inverse), logarithms, powers, roots, factorials, and memory buttons (M+, M-, MR, MC).</p>
+    </div>
+    <div>
+      <h3>History that stays</h3>
+      <p>Your last 50 calculations are saved in your browser and reappear even after you refresh the page.</p>
+    </div>
+    <div>
+      <h3>Built for daily use</h3>
+      <p>Copy any result with one click, switch to scientific notation, and toggle dark mode for late-night studying or work.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div>© <span id="year"></span> MyCalculator — Free online calculators for everyone.</div>
+  <div>
+    <a href="about.html">About</a>·
+    <a href="contact.html">Contact</a>·
+    <a href="privacy-policy.html">Privacy Policy</a>·
+    <a href="terms.html">Terms</a>·
+    <a href="disclaimer.html">Disclaimer</a>
+  </div>
+</footer>
+
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<script src="script.js"></script>
+</body>
+</html>

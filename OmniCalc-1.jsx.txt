@@ -1,0 +1,1333 @@
+import React, { useState, useMemo, useEffect } from "react";
+import {
+  Search, Sun, Moon, Landmark, HeartPulse, Calculator as CalcIcon,
+  CalendarClock, ArrowLeftRight, TrendingUp, PiggyBank, Scale, Flame,
+  Percent, CalendarDays, ChevronRight, X, Sparkles, Gauge, Home as HomeIcon,
+} from "lucide-react";
+
+/* ======================================================================
+   THEME TOKENS
+   ====================================================================== */
+const THEMES = {
+  light: {
+    bg: "#EDEAE1", surface: "#F7F5EF", surface2: "#FFFFFF",
+    ink: "#1B1F24", inkMuted: "#5E6570", border: "#DAD4C6",
+    brass: "#A0701C", brassSoft: "#C9A46A22",
+    teal: "#1C3D3A", green: "#2F6B4F", red: "#B33B3B", blue: "#3C6FA6",
+    displayBg: "#16211E", displayInk: "#E7C87A",
+  },
+  dark: {
+    bg: "#0D1117", surface: "#141B22", surface2: "#1B242C",
+    ink: "#EDEAE0", inkMuted: "#98A1AC", border: "#2A343D",
+    brass: "#D9A544", brassSoft: "#D9A54422",
+    teal: "#4FA394", green: "#5FBE8D", red: "#E07070", blue: "#6FA0DE",
+    displayBg: "#070A0B", displayInk: "#F2C766",
+  },
+};
+
+function cssVars(t) {
+  return {
+    "--bg": t.bg, "--surface": t.surface, "--surface-2": t.surface2,
+    "--ink": t.ink, "--ink-muted": t.inkMuted, "--border": t.border,
+    "--brass": t.brass, "--brass-soft": t.brassSoft,
+    "--teal": t.teal, "--green": t.green, "--red": t.red, "--blue": t.blue,
+    "--display-bg": t.displayBg, "--display-ink": t.displayInk,
+  };
+}
+
+/* ======================================================================
+   SHARED UI ATOMS
+   ====================================================================== */
+const inputClass =
+  "w-full rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3.5 py-2.5 text-[15px] text-[var(--ink)] outline-none transition focus:border-[var(--brass)] focus:ring-2 focus:ring-[var(--brass-soft)]";
+
+function Field({ label, hint, children }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 flex items-baseline justify-between">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">{label}</span>
+        {hint && <span className="text-[11px] text-[var(--ink-muted)]">{hint}</span>}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function NumberInput({ value, onChange, suffix, ...rest }) {
+  return (
+    <div className="relative">
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={inputClass + (suffix ? " pr-10" : "")}
+        {...rest}
+      />
+      {suffix && (
+        <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-[var(--ink-muted)]">
+          {suffix}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function SelectInput({ value, onChange, options }) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} className={inputClass}>
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>{o.label}</option>
+      ))}
+    </select>
+  );
+}
+
+function Segmented({ options, value, onChange, full }) {
+  return (
+    <div className={`inline-flex rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-1 ${full ? "w-full" : ""}`}>
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={`${full ? "flex-1" : ""} rounded-md px-3.5 py-1.5 text-sm transition ${
+            value === opt.value
+              ? "bg-[var(--brass)] font-semibold text-[var(--surface)] shadow-sm"
+              : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Slider({ value, onChange, min, max, step }) {
+  const pct = ((value - min) / (max - min)) * 100;
+  return (
+    <input
+      type="range"
+      min={min}
+      max={max}
+      step={step}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full accent-[var(--brass)]"
+      style={{
+        background: `linear-gradient(90deg, var(--brass) ${pct}%, var(--border) ${pct}%)`,
+        height: 6, borderRadius: 999, appearance: "none", outline: "none",
+      }}
+    />
+  );
+}
+
+function Card({ children, className = "" }) {
+  return (
+    <div className={`rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+function Ruler() {
+  return (
+    <div
+      className="h-2 w-full opacity-70"
+      style={{
+        backgroundImage:
+          "repeating-linear-gradient(90deg, var(--border) 0px, var(--border) 1px, transparent 1px, transparent 10px)",
+      }}
+    />
+  );
+}
+
+function DigitalReadout({ label, value, sub, big }) {
+  return (
+    <div className="rounded-xl border border-black/20 bg-[var(--display-bg)] px-5 py-4 shadow-inner">
+      <div className="mb-1 text-[10px] uppercase tracking-[0.22em]" style={{ color: "var(--display-ink)", opacity: 0.6 }}>
+        {label}
+      </div>
+      <div
+        className={`font-mono tracking-tight ${big ? "text-3xl sm:text-4xl" : "text-2xl"}`}
+        style={{ color: "var(--display-ink)", textShadow: "0 0 14px var(--display-ink)" }}
+      >
+        {value}
+      </div>
+      {sub && <div className="mt-1 text-xs" style={{ color: "var(--display-ink)", opacity: 0.7 }}>{sub}</div>}
+    </div>
+  );
+}
+
+function SplitBar({ a, b, aLabel, bLabel, aColor = "var(--brass)", bColor = "var(--teal)" }) {
+  const total = a + b || 1;
+  const pa = Math.max(0, Math.min(100, (a / total) * 100));
+  return (
+    <div>
+      <div className="flex h-3 w-full overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
+        <div style={{ width: `${pa}%`, background: aColor }} />
+        <div style={{ width: `${100 - pa}%`, background: bColor }} />
+      </div>
+      <div className="mt-2 flex justify-between text-xs text-[var(--ink-muted)]">
+        <span><span className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle" style={{ background: aColor }} />{aLabel}</span>
+        <span><span className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle" style={{ background: bColor }} />{bLabel}</span>
+      </div>
+    </div>
+  );
+}
+
+function BmiGauge({ bmi }) {
+  const min = 10, max = 45;
+  const pct = Math.max(0, Math.min(100, ((bmi - min) / (max - min)) * 100));
+  return (
+    <div>
+      <div className="flex h-3 w-full overflow-hidden rounded-full">
+        <div style={{ flex: 8.5, background: "var(--blue)" }} />
+        <div style={{ flex: 6.4, background: "var(--green)" }} />
+        <div style={{ flex: 5, background: "#D9A544" }} />
+        <div style={{ flex: 15, background: "var(--red)" }} />
+      </div>
+      <div className="relative h-3">
+        <div
+          className="absolute -top-1 h-3 w-[3px] rounded bg-[var(--ink)] transition-all"
+          style={{ left: `calc(${pct}% - 1.5px)` }}
+        />
+      </div>
+      <div className="mt-1 flex justify-between text-[10px] text-[var(--ink-muted)]">
+        <span>10</span><span>18.5</span><span>25</span><span>30</span><span>45</span>
+      </div>
+    </div>
+  );
+}
+
+function ExplainSection({ title, children }) {
+  return (
+    <Card className="mt-6">
+      <div className="mb-4 flex items-center gap-2">
+        <Sparkles className="h-4 w-4" style={{ color: "var(--brass)" }} />
+        <h3 className="font-[600] text-[var(--ink)]" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{title}</h3>
+      </div>
+      <div className="space-y-3 text-sm leading-relaxed text-[var(--ink-muted)]">{children}</div>
+    </Card>
+  );
+}
+
+/* ======================================================================
+   FORMAT HELPERS
+   ====================================================================== */
+const fmt = (n, digits = 2) => {
+  if (!isFinite(n)) return "0";
+  return n.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+};
+const money = (n) => "$" + fmt(n, 2);
+const toNum = (v, fallback = 0) => {
+  const n = parseFloat(v);
+  return isNaN(n) ? fallback : n;
+};
+
+/* ======================================================================
+   CALCULATOR REGISTRY
+   ====================================================================== */
+const CATEGORIES = [
+  { id: "financial", name: "Financial", icon: Landmark },
+  { id: "health", name: "Health & Wellness", icon: HeartPulse },
+  { id: "math", name: "Math & Utility", icon: CalcIcon },
+  { id: "date", name: "Date & Time", icon: CalendarClock },
+  { id: "converter", name: "Converters", icon: ArrowLeftRight },
+];
+
+const CALCULATORS = [
+  { id: "emi", name: "EMI / Loan Calculator", category: "financial", icon: Landmark, desc: "Monthly payment, interest & payoff breakdown", keywords: "loan mortgage payment interest emi" },
+  { id: "sip", name: "SIP Calculator", category: "financial", icon: TrendingUp, desc: "Systematic investment growth projection", keywords: "sip investment mutual fund wealth" },
+  { id: "compound", name: "Compound Interest", category: "financial", icon: PiggyBank, desc: "Future value with flexible compounding", keywords: "compound interest savings future value" },
+  { id: "bmi", name: "BMI Calculator", category: "health", icon: Scale, desc: "Body mass index & weight category", keywords: "bmi weight body mass index" },
+  { id: "tdee", name: "Daily Calorie / TDEE", category: "health", icon: Flame, desc: "BMR, maintenance & goal calories", keywords: "calorie tdee bmr metabolism diet" },
+  { id: "ibw", name: "Ideal Body Weight", category: "health", icon: HeartPulse, desc: "Devine & Miller formula estimates", keywords: "ideal body weight devine miller" },
+  { id: "percentage", name: "Percentage Calculator", category: "math", icon: Percent, desc: "Three quick percentage modes", keywords: "percent percentage increase decrease" },
+  { id: "scientific", name: "Scientific Calculator", category: "math", icon: CalcIcon, desc: "Trig, logs, powers & memory", keywords: "scientific sin cos tan log sqrt calculator" },
+  { id: "age", name: "Age Calculator", category: "date", icon: CalendarDays, desc: "Exact age in years, months & days", keywords: "age birthday date of birth" },
+  { id: "datediff", name: "Date Difference", category: "date", icon: CalendarClock, desc: "Duration & business days between dates", keywords: "date difference countdown days between" },
+  { id: "unitconverter", name: "Unit Converter", category: "converter", icon: ArrowLeftRight, desc: "Length, weight, temperature & speed", keywords: "unit converter length weight temperature speed metric imperial" },
+];
+
+const POPULAR = ["emi", "bmi", "sip", "percentage", "age", "unitconverter"];
+
+/* ======================================================================
+   APP SHELL
+   ====================================================================== */
+export default function App() {
+  const [isDark, setIsDark] = useState(false);
+  const [activeId, setActiveId] = useState(null);
+  const [query, setQuery] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
+  const theme = isDark ? THEMES.dark : THEMES.light;
+
+  const active = CALCULATORS.find((c) => c.id === activeId);
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return [];
+    const q = query.toLowerCase();
+    return CALCULATORS.filter((c) => (c.name + " " + c.keywords).toLowerCase().includes(q)).slice(0, 7);
+  }, [query]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [activeId]);
+
+  function goTo(id) {
+    setActiveId(id);
+    setQuery("");
+    setSearchFocused(false);
+  }
+
+  return (
+    <div style={cssVars(theme)} className="min-h-screen bg-[var(--bg)] text-[var(--ink)] transition-colors duration-300">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
+        * { font-family: 'IBM Plex Sans', ui-sans-serif, system-ui; }
+        h1,h2,h3, .display-font { font-family: 'Space Grotesk', ui-sans-serif, system-ui; }
+        input[type=range]::-webkit-slider-thumb {
+          appearance: none; width: 16px; height: 16px; border-radius: 999px;
+          background: var(--brass); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--border); cursor:pointer;
+        }
+        ::selection { background: var(--brass-soft); }
+      `}</style>
+
+      {/* ---------------- HEADER ---------------- */}
+      <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--bg)]/90 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6">
+          <button onClick={() => goTo(null)} className="flex items-center gap-2 shrink-0">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--brass)] text-[var(--surface)]">
+              <CalcIcon className="h-4.5 w-4.5" size={18} />
+            </span>
+            <span className="display-font text-lg font-semibold tracking-tight">OmniCalc</span>
+          </button>
+
+          <div className="relative ml-2 flex-1 max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--ink-muted)]" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
+              placeholder="Search calculators…"
+              className="w-full rounded-full border border-[var(--border)] bg-[var(--surface)] py-2 pl-9 pr-8 text-sm outline-none transition focus:border-[var(--brass)] focus:ring-2 focus:ring-[var(--brass-soft)]"
+            />
+            {query && (
+              <button onClick={() => setQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--ink-muted)]">
+                <X className="h-4 w-4" />
+              </button>
+            )}
+            {searchFocused && filtered.length > 0 && (
+              <div className="absolute left-0 right-0 top-full z-40 mt-2 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-lg">
+                {filtered.map((c) => (
+                  <button
+                    key={c.id}
+                    onMouseDown={() => goTo(c.id)}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-[var(--surface-2)]"
+                  >
+                    <c.icon className="h-4 w-4 shrink-0" style={{ color: "var(--brass)" }} />
+                    <span>{c.name}</span>
+                    <ChevronRight className="ml-auto h-3.5 w-3.5 text-[var(--ink-muted)]" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => setIsDark((d) => !d)}
+            aria-label="Toggle theme"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] transition hover:border-[var(--brass)]"
+          >
+            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
+        </div>
+
+        {/* category nav */}
+        <div className="mx-auto flex max-w-6xl gap-1.5 overflow-x-auto px-4 pb-3 sm:px-6">
+          <button
+            onClick={() => goTo(null)}
+            className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition ${
+              !activeId ? "bg-[var(--brass)] text-[var(--surface)]" : "border border-[var(--border)] text-[var(--ink-muted)] hover:text-[var(--ink)]"
+            }`}
+          >
+            <HomeIcon className="h-3.5 w-3.5" /> Home
+          </button>
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => document.getElementById(`cat-${cat.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              className="flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--border)] px-3.5 py-1.5 text-xs font-medium text-[var(--ink-muted)] transition hover:border-[var(--brass)] hover:text-[var(--ink)]"
+            >
+              <cat.icon className="h-3.5 w-3.5" /> {cat.name}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      {/* ---------------- MAIN ---------------- */}
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+        {!active ? (
+          <HomePage onSelect={goTo} query={query} setQuery={setQuery} />
+        ) : (
+          <CalculatorPage calc={active} onBack={() => goTo(null)} onSelect={goTo} />
+        )}
+      </main>
+
+      <footer className="border-t border-[var(--border)] py-8 text-center text-xs text-[var(--ink-muted)]">
+        OmniCalc — precision tools for everyday numbers. Results are estimates for informational purposes.
+      </footer>
+    </div>
+  );
+}
+
+/* ======================================================================
+   HOME PAGE
+   ====================================================================== */
+function HomePage({ onSelect, query, setQuery }) {
+  return (
+    <div>
+      {/* HERO */}
+      <section
+        className="relative overflow-hidden rounded-3xl border border-[var(--border)] px-6 py-14 sm:px-12"
+        style={{
+          backgroundColor: "var(--surface)",
+          backgroundImage:
+            "repeating-linear-gradient(0deg, var(--border) 0px, transparent 1px, transparent 28px, var(--border) 29px), repeating-linear-gradient(90deg, var(--border) 0px, transparent 1px, transparent 28px, var(--border) 29px)",
+          backgroundSize: "29px 29px", backgroundBlendMode: "overlay", opacity: 1,
+        }}
+      >
+        <div className="relative max-w-2xl">
+          <span className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--brass)]">
+            <Gauge className="h-3 w-3" /> 11 precision calculators
+          </span>
+          <h1 className="display-font text-4xl font-semibold leading-[1.1] tracking-tight sm:text-5xl">
+            Every number,<br />worked out exactly.
+          </h1>
+          <p className="mt-4 max-w-md text-[var(--ink-muted)]">
+            Finance, health, math, dates, and unit conversions — one instrument panel, no guesswork.
+          </p>
+          <div className="relative mt-7 max-w-md">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-[var(--ink-muted)]" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Try “loan”, “calories”, or “age”…"
+              className="w-full rounded-full border border-[var(--border)] bg-[var(--surface-2)] py-3.5 pl-11 pr-4 text-sm shadow-sm outline-none transition focus:border-[var(--brass)] focus:ring-2 focus:ring-[var(--brass-soft)]"
+            />
+          </div>
+          {query.trim() && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {CALCULATORS.filter((c) => (c.name + c.keywords).toLowerCase().includes(query.toLowerCase())).map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => onSelect(c.id)}
+                  className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3.5 py-1.5 text-xs font-medium hover:border-[var(--brass)]"
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* POPULAR */}
+      <section className="mt-12">
+        <div className="mb-4 flex items-center gap-3">
+          <h2 className="display-font text-xl font-semibold">Popular Calculators</h2>
+          <div className="h-px flex-1 bg-[var(--border)]" />
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {POPULAR.map((id) => {
+            const c = CALCULATORS.find((x) => x.id === id);
+            return <CalcCard key={id} calc={c} onSelect={onSelect} />;
+          })}
+        </div>
+      </section>
+
+      {/* CATEGORY BREAKDOWN */}
+      <section className="mt-14 space-y-10">
+        {CATEGORIES.map((cat) => (
+          <div key={cat.id} id={`cat-${cat.id}`} className="scroll-mt-32">
+            <div className="mb-4 flex items-center gap-3">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "var(--brass-soft)" }}>
+                <cat.icon className="h-4 w-4" style={{ color: "var(--brass)" }} />
+              </span>
+              <h2 className="display-font text-lg font-semibold">{cat.name}</h2>
+              <div className="h-px flex-1 bg-[var(--border)]" />
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {CALCULATORS.filter((c) => c.category === cat.id).map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => onSelect(c.id)}
+                  className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3.5 text-left transition hover:border-[var(--brass)] hover:shadow-sm"
+                >
+                  <c.icon className="h-4 w-4 shrink-0" style={{ color: "var(--brass)" }} />
+                  <span className="text-sm font-medium">{c.name}</span>
+                  <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-[var(--ink-muted)]" />
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function CalcCard({ calc, onSelect }) {
+  return (
+    <button
+      onClick={() => onSelect(calc.id)}
+      className="group flex flex-col items-start rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 text-left transition hover:-translate-y-0.5 hover:border-[var(--brass)] hover:shadow-md"
+    >
+      <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: "var(--brass-soft)" }}>
+        <calc.icon className="h-5 w-5" style={{ color: "var(--brass)" }} />
+      </span>
+      <span className="font-semibold">{calc.name}</span>
+      <span className="mt-1 text-sm text-[var(--ink-muted)]">{calc.desc}</span>
+      <span className="mt-3 flex items-center gap-1 text-xs font-medium text-[var(--brass)] opacity-0 transition group-hover:opacity-100">
+        Open calculator <ChevronRight className="h-3 w-3" />
+      </span>
+    </button>
+  );
+}
+
+/* ======================================================================
+   CALCULATOR PAGE SHELL
+   ====================================================================== */
+function CalculatorPage({ calc, onBack, onSelect }) {
+  const cat = CATEGORIES.find((c) => c.id === calc.category);
+  const related = CALCULATORS.filter((c) => c.category === calc.category && c.id !== calc.id).slice(0, 4);
+
+  return (
+    <div>
+      <nav className="mb-5 flex items-center gap-1.5 text-xs text-[var(--ink-muted)]">
+        <button onClick={onBack} className="hover:text-[var(--brass)]">Home</button>
+        <ChevronRight className="h-3 w-3" />
+        <span>{cat.name}</span>
+        <ChevronRight className="h-3 w-3" />
+        <span className="text-[var(--ink)]">{calc.name}</span>
+      </nav>
+
+      <div className="mb-6 flex items-start gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl" style={{ background: "var(--brass-soft)" }}>
+          <calc.icon className="h-5 w-5" style={{ color: "var(--brass)" }} />
+        </span>
+        <div>
+          <h1 className="display-font text-2xl font-semibold tracking-tight sm:text-3xl">{calc.name}</h1>
+          <p className="mt-0.5 text-sm text-[var(--ink-muted)]">{calc.desc}</p>
+        </div>
+      </div>
+
+      <CalcBody id={calc.id} />
+
+      {related.length > 0 && (
+        <section className="mt-10">
+          <div className="mb-3 flex items-center gap-3">
+            <h3 className="display-font text-sm font-semibold">More in {cat.name}</h3>
+            <div className="h-px flex-1 bg-[var(--border)]" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {related.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => onSelect(c.id)}
+                className="flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-xs font-medium hover:border-[var(--brass)]"
+              >
+                <c.icon className="h-3.5 w-3.5" style={{ color: "var(--brass)" }} /> {c.name}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function CalcBody({ id }) {
+  switch (id) {
+    case "emi": return <EmiCalc />;
+    case "sip": return <SipCalc />;
+    case "compound": return <CompoundCalc />;
+    case "bmi": return <BmiCalc />;
+    case "tdee": return <TdeeCalc />;
+    case "ibw": return <IbwCalc />;
+    case "percentage": return <PercentageCalc />;
+    case "scientific": return <ScientificCalc />;
+    case "age": return <AgeCalc />;
+    case "datediff": return <DateDiffCalc />;
+    case "unitconverter": return <UnitConverterCalc />;
+    default: return null;
+  }
+}
+
+/* ======================================================================
+   FINANCIAL: EMI
+   ====================================================================== */
+function EmiCalc() {
+  const [principal, setPrincipal] = useState("250000");
+  const [rate, setRate] = useState("7.5");
+  const [years, setYears] = useState("15");
+
+  const { emi, totalInterest, totalPayment } = useMemo(() => {
+    const P = toNum(principal), r = toNum(rate) / 12 / 100, n = toNum(years) * 12;
+    if (P <= 0 || n <= 0) return { emi: 0, totalInterest: 0, totalPayment: 0 };
+    const e = r === 0 ? P / n : (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+    const total = e * n;
+    return { emi: e, totalInterest: total - P, totalPayment: total };
+  }, [principal, rate, years]);
+
+  return (
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <Card>
+        <div className="space-y-5">
+          <Field label="Loan Amount" hint={money(toNum(principal))}>
+            <NumberInput value={principal} onChange={setPrincipal} suffix="$" min="0" />
+            <Slider value={toNum(principal)} onChange={setPrincipal} min={1000} max={2000000} step={1000} />
+          </Field>
+          <Field label="Interest Rate" hint={`${rate || 0}%`}>
+            <NumberInput value={rate} onChange={setRate} suffix="%" step="0.05" min="0" />
+            <Slider value={toNum(rate)} onChange={setRate} min={0} max={20} step={0.05} />
+          </Field>
+          <Field label="Loan Tenure" hint={`${years || 0} yrs`}>
+            <NumberInput value={years} onChange={setYears} suffix="yrs" min="1" />
+            <Slider value={toNum(years)} onChange={setYears} min={1} max={40} step={1} />
+          </Field>
+        </div>
+      </Card>
+
+      <div className="space-y-4">
+        <DigitalReadout label="Monthly EMI" value={money(emi)} big />
+        <Card>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div><div className="text-[var(--ink-muted)]">Total Interest</div><div className="text-lg font-semibold">{money(totalInterest)}</div></div>
+            <div><div className="text-[var(--ink-muted)]">Total Payment</div><div className="text-lg font-semibold">{money(totalPayment)}</div></div>
+          </div>
+          <div className="mt-5">
+            <SplitBar a={toNum(principal)} b={totalInterest} aLabel="Principal" bLabel="Interest" />
+          </div>
+        </Card>
+      </div>
+
+      <ExplainSection title="How the EMI is calculated">
+        <p>Equated Monthly Installment uses the reducing-balance formula, where each payment covers interest on the outstanding balance plus a portion of principal.</p>
+        <DigitalReadout label="Formula" value="EMI = P·r·(1+r)ⁿ / ((1+r)ⁿ−1)" />
+        <p>P is the loan principal, r is the monthly interest rate (annual rate ÷ 12 ÷ 100), and n is the total number of monthly installments.</p>
+        <p className="text-xs">Example: a $250,000 loan at 7.5% for 15 years produces a fixed monthly payment that stays constant even as the interest/principal mix shifts over time.</p>
+      </ExplainSection>
+    </div>
+  );
+}
+
+/* ======================================================================
+   FINANCIAL: SIP
+   ====================================================================== */
+function SipCalc() {
+  const [monthly, setMonthly] = useState("500");
+  const [rate, setRate] = useState("12");
+  const [years, setYears] = useState("10");
+
+  const { invested, returns, future } = useMemo(() => {
+    const M = toNum(monthly), i = toNum(rate) / 12 / 100, n = toNum(years) * 12;
+    if (M <= 0 || n <= 0) return { invested: 0, returns: 0, future: 0 };
+    const fv = i === 0 ? M * n : M * ((Math.pow(1 + i, n) - 1) / i) * (1 + i);
+    const inv = M * n;
+    return { invested: inv, returns: fv - inv, future: fv };
+  }, [monthly, rate, years]);
+
+  return (
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <Card>
+        <div className="space-y-5">
+          <Field label="Monthly Investment" hint={money(toNum(monthly))}>
+            <NumberInput value={monthly} onChange={setMonthly} suffix="$" min="0" />
+            <Slider value={toNum(monthly)} onChange={setMonthly} min={10} max={10000} step={10} />
+          </Field>
+          <Field label="Expected Annual Return" hint={`${rate || 0}%`}>
+            <NumberInput value={rate} onChange={setRate} suffix="%" step="0.1" min="0" />
+            <Slider value={toNum(rate)} onChange={setRate} min={1} max={30} step={0.5} />
+          </Field>
+          <Field label="Time Period" hint={`${years || 0} yrs`}>
+            <NumberInput value={years} onChange={setYears} suffix="yrs" min="1" />
+            <Slider value={toNum(years)} onChange={setYears} min={1} max={40} step={1} />
+          </Field>
+        </div>
+      </Card>
+
+      <div className="space-y-4">
+        <DigitalReadout label="Total Wealth Value" value={money(future)} big />
+        <Card>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div><div className="text-[var(--ink-muted)]">Total Invested</div><div className="text-lg font-semibold">{money(invested)}</div></div>
+            <div><div className="text-[var(--ink-muted)]">Est. Returns</div><div className="text-lg font-semibold" style={{ color: "var(--green)" }}>{money(returns)}</div></div>
+          </div>
+          <div className="mt-5">
+            <SplitBar a={invested} b={returns} aLabel="Invested" bLabel="Returns" bColor="var(--green)" />
+          </div>
+        </Card>
+      </div>
+
+      <ExplainSection title="How SIP growth is projected">
+        <p>A Systematic Investment Plan compounds a fixed monthly contribution at an assumed rate of return, similar to an annuity due.</p>
+        <DigitalReadout label="Formula" value="FV = M·[((1+i)ⁿ−1)/i]·(1+i)" />
+        <p>M is the monthly investment, i is the monthly rate of return, and n is the total number of installments. Returns are estimates — actual market performance varies.</p>
+      </ExplainSection>
+    </div>
+  );
+}
+
+/* ======================================================================
+   FINANCIAL: COMPOUND INTEREST
+   ====================================================================== */
+function CompoundCalc() {
+  const [principal, setPrincipal] = useState("10000");
+  const [rate, setRate] = useState("6");
+  const [years, setYears] = useState("10");
+  const [freq, setFreq] = useState("12");
+
+  const { futureValue, interest } = useMemo(() => {
+    const P = toNum(principal), r = toNum(rate) / 100, t = toNum(years), n = toNum(freq);
+    if (P <= 0 || t <= 0 || n <= 0) return { futureValue: 0, interest: 0 };
+    const A = P * Math.pow(1 + r / n, n * t);
+    return { futureValue: A, interest: A - P };
+  }, [principal, rate, years, freq]);
+
+  return (
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <Card>
+        <div className="space-y-5">
+          <Field label="Principal" hint={money(toNum(principal))}>
+            <NumberInput value={principal} onChange={setPrincipal} suffix="$" min="0" />
+          </Field>
+          <Field label="Annual Interest Rate" hint={`${rate || 0}%`}>
+            <NumberInput value={rate} onChange={setRate} suffix="%" step="0.1" min="0" />
+          </Field>
+          <Field label="Time Period" hint={`${years || 0} yrs`}>
+            <NumberInput value={years} onChange={setYears} suffix="yrs" min="0" />
+          </Field>
+          <Field label="Compounding Frequency">
+            <SelectInput
+              value={freq}
+              onChange={setFreq}
+              options={[
+                { value: "1", label: "Annually" },
+                { value: "2", label: "Semi-Annually" },
+                { value: "4", label: "Quarterly" },
+                { value: "12", label: "Monthly" },
+              ]}
+            />
+          </Field>
+        </div>
+      </Card>
+
+      <div className="space-y-4">
+        <DigitalReadout label="Future Value" value={money(futureValue)} big />
+        <Card>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div><div className="text-[var(--ink-muted)]">Principal</div><div className="text-lg font-semibold">{money(toNum(principal))}</div></div>
+            <div><div className="text-[var(--ink-muted)]">Interest Earned</div><div className="text-lg font-semibold" style={{ color: "var(--green)" }}>{money(interest)}</div></div>
+          </div>
+          <div className="mt-5">
+            <SplitBar a={toNum(principal)} b={interest} aLabel="Principal" bLabel="Interest" bColor="var(--green)" />
+          </div>
+        </Card>
+      </div>
+
+      <ExplainSection title="How compound interest works">
+        <p>Interest is calculated on the initial principal plus all accumulated interest from prior periods, so growth accelerates over time.</p>
+        <DigitalReadout label="Formula" value="A = P·(1 + r/n)^(n·t)" />
+        <p>P is principal, r is the annual rate, n is compounding periods per year, and t is time in years. More frequent compounding yields a slightly higher return.</p>
+      </ExplainSection>
+    </div>
+  );
+}
+
+/* ======================================================================
+   HEALTH: BMI
+   ====================================================================== */
+function BmiCalc() {
+  const [unit, setUnit] = useState("metric");
+  const [heightCm, setHeightCm] = useState("175");
+  const [weightKg, setWeightKg] = useState("72");
+  const [heightFt, setHeightFt] = useState("5");
+  const [heightIn, setHeightIn] = useState("9");
+  const [weightLb, setWeightLb] = useState("160");
+
+  const bmi = useMemo(() => {
+    if (unit === "metric") {
+      const h = toNum(heightCm) / 100, w = toNum(weightKg);
+      return h > 0 ? w / (h * h) : 0;
+    } else {
+      const totalIn = toNum(heightFt) * 12 + toNum(heightIn), w = toNum(weightLb);
+      return totalIn > 0 ? (703 * w) / (totalIn * totalIn) : 0;
+    }
+  }, [unit, heightCm, weightKg, heightFt, heightIn, weightLb]);
+
+  const category = bmi < 18.5 ? "Underweight" : bmi < 25 ? "Normal" : bmi < 30 ? "Overweight" : "Obese";
+  const catColor = bmi < 18.5 ? "var(--blue)" : bmi < 25 ? "var(--green)" : bmi < 30 ? "#D9A544" : "var(--red)";
+
+  return (
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <Card>
+        <div className="space-y-5">
+          <Segmented full options={[{ value: "metric", label: "Metric (kg/cm)" }, { value: "imperial", label: "Imperial (lb/ft-in)" }]} value={unit} onChange={setUnit} />
+          {unit === "metric" ? (
+            <>
+              <Field label="Height" hint="cm"><NumberInput value={heightCm} onChange={setHeightCm} suffix="cm" min="0" /></Field>
+              <Field label="Weight" hint="kg"><NumberInput value={weightKg} onChange={setWeightKg} suffix="kg" min="0" /></Field>
+            </>
+          ) : (
+            <>
+              <Field label="Height">
+                <div className="grid grid-cols-2 gap-2">
+                  <NumberInput value={heightFt} onChange={setHeightFt} suffix="ft" min="0" />
+                  <NumberInput value={heightIn} onChange={setHeightIn} suffix="in" min="0" />
+                </div>
+              </Field>
+              <Field label="Weight" hint="lb"><NumberInput value={weightLb} onChange={setWeightLb} suffix="lb" min="0" /></Field>
+            </>
+          )}
+        </div>
+      </Card>
+
+      <div className="space-y-4">
+        <DigitalReadout label="BMI Score" value={fmt(bmi, 1)} sub={category} big />
+        <Card>
+          <div className="mb-2 flex items-center justify-between text-sm">
+            <span className="text-[var(--ink-muted)]">Weight Category</span>
+            <span className="font-semibold" style={{ color: catColor }}>{category}</span>
+          </div>
+          <BmiGauge bmi={bmi} />
+        </Card>
+      </div>
+
+      <ExplainSection title="How BMI is calculated">
+        <p>Body Mass Index estimates body fat based on height and weight, using different formulas depending on unit system.</p>
+        <DigitalReadout label="Metric" value="BMI = kg / m²" />
+        <DigitalReadout label="Imperial" value="BMI = 703 × lb / in²" />
+        <p>BMI is a screening tool, not a diagnostic measure — it doesn't account for muscle mass, bone density, or body composition.</p>
+      </ExplainSection>
+    </div>
+  );
+}
+
+/* ======================================================================
+   HEALTH: TDEE / CALORIE
+   ====================================================================== */
+function TdeeCalc() {
+  const [gender, setGender] = useState("male");
+  const [age, setAge] = useState("30");
+  const [heightCm, setHeightCm] = useState("175");
+  const [weightKg, setWeightKg] = useState("75");
+  const [activity, setActivity] = useState("1.55");
+
+  const { bmr, maintenance } = useMemo(() => {
+    const a = toNum(age), h = toNum(heightCm), w = toNum(weightKg);
+    const base = 10 * w + 6.25 * h - 5 * a + (gender === "male" ? 5 : -161);
+    return { bmr: Math.max(0, base), maintenance: Math.max(0, base) * toNum(activity) };
+  }, [gender, age, heightCm, weightKg, activity]);
+
+  const ACTIVITY = [
+    { value: "1.2", label: "Sedentary (little/no exercise)" },
+    { value: "1.375", label: "Light (1-3 days/week)" },
+    { value: "1.55", label: "Moderate (3-5 days/week)" },
+    { value: "1.725", label: "Active (6-7 days/week)" },
+    { value: "1.9", label: "Very Active (athlete)" },
+  ];
+
+  return (
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <Card>
+        <div className="space-y-5">
+          <Field label="Gender">
+            <Segmented full options={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }]} value={gender} onChange={setGender} />
+          </Field>
+          <Field label="Age" hint="years"><NumberInput value={age} onChange={setAge} suffix="yrs" min="0" /></Field>
+          <Field label="Height" hint="cm"><NumberInput value={heightCm} onChange={setHeightCm} suffix="cm" min="0" /></Field>
+          <Field label="Weight" hint="kg"><NumberInput value={weightKg} onChange={setWeightKg} suffix="kg" min="0" /></Field>
+          <Field label="Activity Level"><SelectInput value={activity} onChange={setActivity} options={ACTIVITY} /></Field>
+        </div>
+      </Card>
+
+      <div className="space-y-4">
+        <DigitalReadout label="Maintenance Calories" value={`${fmt(maintenance, 0)} kcal/day`} big />
+        <Card>
+          <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
+            <div><div className="text-[var(--ink-muted)]">BMR</div><div className="text-lg font-semibold">{fmt(bmr, 0)} kcal</div></div>
+            <div><div className="text-[var(--ink-muted)]">Weight Loss</div><div className="text-lg font-semibold" style={{ color: "var(--red)" }}>{fmt(Math.max(0, maintenance - 500), 0)} kcal</div></div>
+            <div><div className="text-[var(--ink-muted)]">Weight Gain</div><div className="text-lg font-semibold" style={{ color: "var(--green)" }}>{fmt(maintenance + 500, 0)} kcal</div></div>
+          </div>
+        </Card>
+      </div>
+
+      <ExplainSection title="How calorie needs are calculated">
+        <p>Basal Metabolic Rate (BMR) is estimated with the Mifflin-St Jeor equation, then scaled by an activity multiplier to find total daily energy expenditure (TDEE).</p>
+        <DigitalReadout label="BMR (male)" value="10w + 6.25h − 5a + 5" />
+        <DigitalReadout label="BMR (female)" value="10w + 6.25h − 5a − 161" />
+        <p>Weight-loss and weight-gain targets apply a standard ±500 kcal/day adjustment, roughly equal to 1 lb of body weight per week.</p>
+      </ExplainSection>
+    </div>
+  );
+}
+
+/* ======================================================================
+   HEALTH: IDEAL BODY WEIGHT
+   ====================================================================== */
+function IbwCalc() {
+  const [gender, setGender] = useState("male");
+  const [heightCm, setHeightCm] = useState("175");
+  const [frame, setFrame] = useState("medium");
+
+  const { devine, miller } = useMemo(() => {
+    const totalIn = toNum(heightCm) / 2.54;
+    const overIn = Math.max(0, totalIn - 60);
+    let d = gender === "male" ? 50 + 2.3 * overIn : 45.5 + 2.3 * overIn;
+    let m = gender === "male" ? 56.2 + 1.41 * overIn : 53.1 + 1.36 * overIn;
+    const factor = frame === "small" ? 0.9 : frame === "large" ? 1.1 : 1;
+    return { devine: d * factor, miller: m * factor };
+  }, [gender, heightCm, frame]);
+
+  return (
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <Card>
+        <div className="space-y-5">
+          <Field label="Gender">
+            <Segmented full options={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }]} value={gender} onChange={setGender} />
+          </Field>
+          <Field label="Height" hint="cm"><NumberInput value={heightCm} onChange={setHeightCm} suffix="cm" min="0" /></Field>
+          <Field label="Frame Size">
+            <Segmented full options={[{ value: "small", label: "Small" }, { value: "medium", label: "Medium" }, { value: "large", label: "Large" }]} value={frame} onChange={setFrame} />
+          </Field>
+        </div>
+      </Card>
+
+      <div className="space-y-4">
+        <DigitalReadout label="Devine Formula" value={`${fmt(devine, 1)} kg`} sub={`≈ ${fmt(devine * 2.20462, 1)} lb`} big />
+        <Card>
+          <div className="text-sm text-[var(--ink-muted)]">Miller Formula</div>
+          <div className="text-lg font-semibold">{fmt(miller, 1)} kg <span className="text-sm font-normal text-[var(--ink-muted)]">(≈ {fmt(miller * 2.20462, 1)} lb)</span></div>
+        </Card>
+      </div>
+
+      <ExplainSection title="How ideal body weight is estimated">
+        <p>Both formulas start from a baseline weight at 5 feet tall and add weight per inch above that height, then adjust for body frame size.</p>
+        <DigitalReadout label="Devine (male)" value="50 kg + 2.3 kg / in over 5ft" />
+        <DigitalReadout label="Miller (male)" value="56.2 kg + 1.41 kg / in over 5ft" />
+        <p>These are population-level estimates from clinical dosing literature, not personalized health targets — actual healthy weight varies by build and composition.</p>
+      </ExplainSection>
+    </div>
+  );
+}
+
+/* ======================================================================
+   MATH: PERCENTAGE
+   ====================================================================== */
+function PercentageCalc() {
+  const [mode, setMode] = useState("of");
+  const [x, setX] = useState("20");
+  const [y, setY] = useState("150");
+
+  const result = useMemo(() => {
+    const X = toNum(x), Y = toNum(y);
+    if (mode === "of") return { value: (X / 100) * Y, label: `${X || 0}% of ${Y || 0}` };
+    if (mode === "isWhat") return { value: Y !== 0 ? (X / Y) * 100 : 0, label: `${X || 0} is what % of ${Y || 0}` };
+    const change = X !== 0 ? ((Y - X) / X) * 100 : 0;
+    return { value: change, label: `Change from ${X || 0} to ${Y || 0}` };
+  }, [mode, x, y]);
+
+  return (
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <Card>
+        <div className="space-y-5">
+          <Field label="Mode">
+            <Segmented
+              full
+              options={[
+                { value: "of", label: "X% of Y" },
+                { value: "isWhat", label: "X is % of Y" },
+                { value: "change", label: "% change" },
+              ]}
+              value={mode}
+              onChange={setMode}
+            />
+          </Field>
+          <Field label={mode === "of" ? "X (percent)" : mode === "isWhat" ? "X (value)" : "X (from)"}>
+            <NumberInput value={x} onChange={setX} suffix={mode === "of" ? "%" : ""} />
+          </Field>
+          <Field label={mode === "of" ? "Y (total)" : mode === "isWhat" ? "Y (total)" : "Y (to)"}>
+            <NumberInput value={y} onChange={setY} />
+          </Field>
+        </div>
+      </Card>
+
+      <div className="space-y-4">
+        <DigitalReadout
+          label={result.label}
+          value={mode === "isWhat" || mode === "change" ? `${fmt(result.value, 2)}%` : fmt(result.value, 2)}
+          big
+        />
+        <Card>
+          <p className="text-sm text-[var(--ink-muted)]">
+            {mode === "of" && `${x || 0}% of ${y || 0} equals ${fmt(result.value, 2)}.`}
+            {mode === "isWhat" && `${x || 0} is ${fmt(result.value, 2)}% of ${y || 0}.`}
+            {mode === "change" && `Moving from ${x || 0} to ${y || 0} is a ${result.value >= 0 ? "increase" : "decrease"} of ${fmt(Math.abs(result.value), 2)}%.`}
+          </p>
+        </Card>
+      </div>
+
+      <ExplainSection title="Percentage formulas">
+        <DigitalReadout label="X% of Y" value="(X ÷ 100) × Y" />
+        <DigitalReadout label="X is what % of Y" value="(X ÷ Y) × 100" />
+        <DigitalReadout label="% change X → Y" value="((Y − X) ÷ X) × 100" />
+      </ExplainSection>
+    </div>
+  );
+}
+
+/* ======================================================================
+   MATH: SCIENTIFIC CALCULATOR
+   ====================================================================== */
+function ScientificCalc() {
+  const [display, setDisplay] = useState("0");
+  const [stored, setStored] = useState(null);
+  const [operator, setOperator] = useState(null);
+  const [waiting, setWaiting] = useState(false);
+  const [memory, setMemory] = useState(0);
+
+  const inputDigit = (d) => {
+    if (waiting) { setDisplay(d); setWaiting(false); return; }
+    setDisplay(display === "0" ? d : display + d);
+  };
+  const inputDot = () => {
+    if (waiting) { setDisplay("0."); setWaiting(false); return; }
+    if (!display.includes(".")) setDisplay(display + ".");
+  };
+  const clearAll = () => { setDisplay("0"); setStored(null); setOperator(null); setWaiting(false); };
+  const backspace = () => setDisplay(display.length > 1 ? display.slice(0, -1) : "0");
+  const toggleSign = () => setDisplay((parseFloat(display) * -1).toString());
+
+  const compute = (a, op, b) => {
+    switch (op) {
+      case "+": return a + b;
+      case "−": return a - b;
+      case "×": return a * b;
+      case "÷": return b === 0 ? 0 : a / b;
+      case "xʸ": return Math.pow(a, b);
+      default: return b;
+    }
+  };
+
+  const chooseOperator = (op) => {
+    const cur = parseFloat(display);
+    if (stored !== null && operator && !waiting) {
+      const result = compute(stored, operator, cur);
+      setDisplay(String(round(result)));
+      setStored(round(result));
+    } else {
+      setStored(cur);
+    }
+    setOperator(op);
+    setWaiting(true);
+  };
+
+  const equals = () => {
+    if (operator === null || stored === null) return;
+    const cur = parseFloat(display);
+    const result = compute(stored, operator, cur);
+    setDisplay(String(round(result)));
+    setStored(null);
+    setOperator(null);
+    setWaiting(true);
+  };
+
+  const round = (n) => Math.round(n * 1e10) / 1e10;
+
+  const unary = (fn) => {
+    const cur = parseFloat(display);
+    setDisplay(String(round(fn(cur))));
+    setWaiting(true);
+  };
+
+  const deg2rad = (d) => (d * Math.PI) / 180;
+
+  const BUTTONS = [
+    { l: "MC", fn: () => setMemory(0), type: "mem" },
+    { l: "MR", fn: () => { setDisplay(String(memory)); setWaiting(true); }, type: "mem" },
+    { l: "M+", fn: () => setMemory(memory + parseFloat(display)), type: "mem" },
+    { l: "C", fn: clearAll, type: "mem" },
+
+    { l: "sin", fn: () => unary((v) => Math.sin(deg2rad(v))), type: "fn" },
+    { l: "cos", fn: () => unary((v) => Math.cos(deg2rad(v))), type: "fn" },
+    { l: "tan", fn: () => unary((v) => Math.tan(deg2rad(v))), type: "fn" },
+    { l: "√x", fn: () => unary((v) => Math.sqrt(v)), type: "fn" },
+
+    { l: "ln", fn: () => unary((v) => Math.log(v)), type: "fn" },
+    { l: "log", fn: () => unary((v) => Math.log10(v)), type: "fn" },
+    { l: "x²", fn: () => unary((v) => v * v), type: "fn" },
+    { l: "xʸ", fn: () => chooseOperator("xʸ"), type: "fn" },
+
+    { l: "7", fn: () => inputDigit("7"), type: "num" },
+    { l: "8", fn: () => inputDigit("8"), type: "num" },
+    { l: "9", fn: () => inputDigit("9"), type: "num" },
+    { l: "÷", fn: () => chooseOperator("÷"), type: "op" },
+
+    { l: "4", fn: () => inputDigit("4"), type: "num" },
+    { l: "5", fn: () => inputDigit("5"), type: "num" },
+    { l: "6", fn: () => inputDigit("6"), type: "num" },
+    { l: "×", fn: () => chooseOperator("×"), type: "op" },
+
+    { l: "1", fn: () => inputDigit("1"), type: "num" },
+    { l: "2", fn: () => inputDigit("2"), type: "num" },
+    { l: "3", fn: () => inputDigit("3"), type: "num" },
+    { l: "−", fn: () => chooseOperator("−"), type: "op" },
+
+    { l: "0", fn: () => inputDigit("0"), type: "num" },
+    { l: ".", fn: inputDot, type: "num" },
+    { l: "±", fn: toggleSign, type: "num" },
+    { l: "+", fn: () => chooseOperator("+"), type: "op" },
+
+    { l: "1/x", fn: () => unary((v) => (v === 0 ? 0 : 1 / v)), type: "fn" },
+    { l: "⌫", fn: backspace, type: "mem" },
+    { l: "%", fn: () => unary((v) => v / 100), type: "fn" },
+    { l: "=", fn: equals, type: "eq" },
+  ];
+
+  const styleFor = (type) => {
+    if (type === "eq") return "bg-[var(--brass)] text-[var(--surface)] font-semibold";
+    if (type === "op") return "bg-[var(--surface-2)] text-[var(--brass)] font-semibold border border-[var(--border)]";
+    if (type === "fn") return "bg-[var(--surface-2)] text-[var(--teal)] text-sm border border-[var(--border)]";
+    if (type === "mem") return "bg-[var(--surface-2)] text-[var(--ink-muted)] text-sm border border-[var(--border)]";
+    return "bg-[var(--surface-2)] text-[var(--ink)] border border-[var(--border)]";
+  };
+
+  return (
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <Card>
+        <DigitalReadout label={operator ? `${fmt(stored ?? 0, 0)} ${operator}` : "Display"} value={display} big />
+        <div className="mt-4 grid grid-cols-4 gap-2">
+          {BUTTONS.map((b, i) => (
+            <button
+              key={i}
+              onClick={b.fn}
+              className={`rounded-lg py-2.5 text-center transition active:scale-95 ${styleFor(b.type)}`}
+            >
+              {b.l}
+            </button>
+          ))}
+        </div>
+        {memory !== 0 && <div className="mt-2 text-right text-xs text-[var(--ink-muted)]">M = {fmt(memory, 2)}</div>}
+      </Card>
+
+      <ExplainSection title="Using the scientific calculator">
+        <p>Trigonometric functions (sin, cos, tan) operate in degrees. Logarithm buttons cover natural log (ln) and base-10 log (log).</p>
+        <p>Memory buttons let you stash a running value: <strong>M+</strong> adds the display to memory, <strong>MR</strong> recalls it, and <strong>MC</strong> clears it.</p>
+        <p>The <strong>xʸ</strong> button works like any other operator — enter a base, press <strong>xʸ</strong>, enter an exponent, then <strong>=</strong>.</p>
+      </ExplainSection>
+    </div>
+  );
+}
+
+/* ======================================================================
+   DATE: AGE CALCULATOR
+   ====================================================================== */
+function AgeCalc() {
+  const today = new Date().toISOString().slice(0, 10);
+  const [dob, setDob] = useState("1995-06-15");
+  const [target, setTarget] = useState(today);
+
+  const result = useMemo(() => {
+    const start = new Date(dob + "T00:00:00");
+    const end = new Date(target + "T00:00:00");
+    if (isNaN(start) || isNaN(end) || end < start) return null;
+    let y = end.getFullYear() - start.getFullYear();
+    let m = end.getMonth() - start.getMonth();
+    let d = end.getDate() - start.getDate();
+    if (d < 0) { m -= 1; d += new Date(end.getFullYear(), end.getMonth(), 0).getDate(); }
+    if (m < 0) { y -= 1; m += 12; }
+    const totalDays = Math.round((end - start) / 86400000);
+    const totalWeeks = Math.floor(totalDays / 7);
+    return { y, m, d, totalDays, totalWeeks };
+  }, [dob, target]);
+
+  return (
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <Card>
+        <div className="space-y-5">
+          <Field label="Date of Birth"><input type="date" value={dob} onChange={(e) => setDob(e.target.value)} className={inputClass} /></Field>
+          <Field label="Target Date"><input type="date" value={target} onChange={(e) => setTarget(e.target.value)} className={inputClass} /></Field>
+        </div>
+      </Card>
+
+      <div className="space-y-4">
+        {result ? (
+          <>
+            <DigitalReadout label="Exact Age" value={`${result.y}y ${result.m}m ${result.d}d`} big />
+            <Card>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div><div className="text-[var(--ink-muted)]">Total Weeks</div><div className="text-lg font-semibold">{fmt(result.totalWeeks, 0)}</div></div>
+                <div><div className="text-[var(--ink-muted)]">Total Days</div><div className="text-lg font-semibold">{fmt(result.totalDays, 0)}</div></div>
+              </div>
+            </Card>
+          </>
+        ) : (
+          <Card><p className="text-sm text-[var(--ink-muted)]">Target date must be on or after the date of birth.</p></Card>
+        )}
+      </div>
+
+      <ExplainSection title="How age is broken down">
+        <p>Years, months, and days are calculated calendar-aware — borrowing days from the previous month and months from the previous year exactly as a wall calendar would.</p>
+        <p>Total weeks and total days are a straight count of elapsed 24-hour periods between the two dates.</p>
+      </ExplainSection>
+    </div>
+  );
+}
+
+/* ======================================================================
+   DATE: DATE DIFFERENCE
+   ====================================================================== */
+function DateDiffCalc() {
+  const today = new Date().toISOString().slice(0, 10);
+  const [start, setStart] = useState(today);
+  const [end, setEnd] = useState(new Date(Date.now() + 45 * 86400000).toISOString().slice(0, 10));
+
+  const result = useMemo(() => {
+    const s = new Date(start + "T00:00:00");
+    const e = new Date(end + "T00:00:00");
+    if (isNaN(s) || isNaN(e) || e < s) return null;
+    const totalDays = Math.round((e - s) / 86400000);
+    let business = 0;
+    const cursor = new Date(s);
+    for (let i = 0; i < totalDays; i++) {
+      const day = cursor.getDay();
+      if (day !== 0 && day !== 6) business++;
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    const weeks = Math.floor(totalDays / 7);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const remaining = Math.round((e - now) / 86400000);
+    return { totalDays, business, weeks, remainDays: totalDays % 7, remaining };
+  }, [start, end]);
+
+  return (
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <Card>
+        <div className="space-y-5">
+          <Field label="Start Date"><input type="date" value={start} onChange={(e) => setStart(e.target.value)} className={inputClass} /></Field>
+          <Field label="End Date"><input type="date" value={end} onChange={(e) => setEnd(e.target.value)} className={inputClass} /></Field>
+        </div>
+      </Card>
+
+      <div className="space-y-4">
+        {result ? (
+          <>
+            <DigitalReadout label="Total Duration" value={`${result.weeks}w ${result.remainDays}d`} sub={`${fmt(result.totalDays, 0)} total days`} big />
+            <Card>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div><div className="text-[var(--ink-muted)]">Business Days</div><div className="text-lg font-semibold">{fmt(result.business, 0)}</div></div>
+                <div>
+                  <div className="text-[var(--ink-muted)]">{result.remaining >= 0 ? "Time Remaining" : "Time Since End"}</div>
+                  <div className="text-lg font-semibold">{fmt(Math.abs(result.remaining), 0)} days</div>
+                </div>
+              </div>
+            </Card>
+          </>
+        ) : (
+          <Card><p className="text-sm text-[var(--ink-muted)]">End date must be on or after the start date.</p></Card>
+        )}
+      </div>
+
+      <ExplainSection title="How the duration is calculated">
+        <p>Total days is a direct count between the two calendar dates. Business days exclude every Saturday and Sunday in that range.</p>
+        <p>Time remaining compares the end date against today, showing a countdown for future dates or elapsed time for past ones.</p>
+      </ExplainSection>
+    </div>
+  );
+}
+
+/* ======================================================================
+   CONVERTER: UNIT CONVERTER
+   ====================================================================== */
+const UNIT_GROUPS = {
+  length: { label: "Length", base: "m", units: { mm: 0.001, cm: 0.01, m: 1, km: 1000, in: 0.0254, ft: 0.3048, yd: 0.9144, mi: 1609.34 } },
+  weight: { label: "Weight", base: "kg", units: { mg: 0.000001, g: 0.001, kg: 1, t: 1000, oz: 0.0283495, lb: 0.453592 } },
+  speed: { label: "Speed", base: "m/s", units: { "m/s": 1, "km/h": 0.277778, mph: 0.44704, knot: 0.514444, "ft/s": 0.3048 } },
+  temperature: { label: "Temperature", base: "C", units: { C: "C", F: "F", K: "K" } },
+};
+
+function convertTemp(v, from, to) {
+  let c;
+  if (from === "C") c = v;
+  else if (from === "F") c = ((v - 32) * 5) / 9;
+  else c = v - 273.15;
+  if (to === "C") return c;
+  if (to === "F") return (c * 9) / 5 + 32;
+  return c + 273.15;
+}
+
+function UnitConverterCalc() {
+  const [category, setCategory] = useState("length");
+  const group = UNIT_GROUPS[category];
+  const unitKeys = Object.keys(group.units);
+  const [from, setFrom] = useState(unitKeys[0]);
+  const [to, setTo] = useState(unitKeys[1]);
+  const [value, setValue] = useState("1");
+
+  useEffect(() => {
+    const keys = Object.keys(UNIT_GROUPS[category].units);
+    setFrom(keys[0]);
+    setTo(keys[1]);
+  }, [category]);
+
+  const result = useMemo(() => {
+    const v = toNum(value);
+    if (category === "temperature") return convertTemp(v, from, to);
+    const base = v * (group.units[from] ?? 1);
+    return base / (group.units[to] ?? 1);
+  }, [value, from, to, category, group]);
+
+  return (
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <Card>
+        <div className="space-y-5">
+          <Field label="Category">
+            <SelectInput value={category} onChange={setCategory} options={Object.entries(UNIT_GROUPS).map(([k, g]) => ({ value: k, label: g.label }))} />
+          </Field>
+          <Field label="Value"><NumberInput value={value} onChange={setValue} /></Field>
+          <div className="grid grid-cols-[1fr,auto,1fr] items-end gap-2">
+            <Field label="From">
+              <SelectInput value={from} onChange={setFrom} options={unitKeys.map((u) => ({ value: u, label: u }))} />
+            </Field>
+            <button
+              onClick={() => { setFrom(to); setTo(from); }}
+              className="mb-0.5 flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] hover:border-[var(--brass)]"
+            >
+              <ArrowLeftRight className="h-4 w-4" />
+            </button>
+            <Field label="To">
+              <SelectInput value={to} onChange={setTo} options={unitKeys.map((u) => ({ value: u, label: u }))} />
+            </Field>
+          </div>
+        </div>
+      </Card>
+
+      <div className="space-y-4">
+        <DigitalReadout label={`${value || 0} ${from} equals`} value={`${fmt(result, 4)} ${to}`} big />
+        <Card>
+          <p className="text-sm text-[var(--ink-muted)]">
+            Conversions use fixed standard factors relative to a common base unit ({category === "temperature" ? "Celsius" : group.base}), so any pair within the {group.label.toLowerCase()} category can be combined.
+          </p>
+        </Card>
+      </div>
+
+      <ExplainSection title="How conversions work">
+        <p>For length, weight, and speed, every unit is converted to a common base unit first, then converted from the base into the target unit — this keeps every pair of units mutually consistent.</p>
+        <p>Temperature is handled separately since Celsius, Fahrenheit, and Kelvin scales don't share a simple multiplicative factor.</p>
+      </ExplainSection>
+    </div>
+  );
+}
